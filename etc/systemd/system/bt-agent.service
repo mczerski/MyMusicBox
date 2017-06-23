@@ -1,0 +1,11 @@
+[Unit]
+Description=Bluetooth pairing agent
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=forking
+PrivateTmp=true
+ExecStart=/usr/bin/bt-agent -d -c NoInputNoOutput -p /etc/bluetooth/bluetooth-default-pin
+Restart=on-failure

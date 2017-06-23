@@ -1,0 +1,12 @@
+[Unit]
+Description=Speaker On/OFF
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=root
+Type=simple
+ExecStart=/usr/local/bin/speaker-on-off
+Restart=on-failure
+RestartSec=20

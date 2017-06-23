@@ -1,0 +1,13 @@
+[Unit]
+Description=PulseAudio Daemon
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=mopidy
+Type=forking
+ExecStart=/usr/bin/pulseaudio --start
+ExecStop=/usr/bin/pulseaudio -k
+RemainAfterExit=true
+Restart=on-failure

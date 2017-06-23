@@ -1,0 +1,60 @@
+#!/usr/bin/env python 
+from pulsectl import Pulse, PulseLoopStop
+from sysfs.gpio import Controller, OUTPUT
+import argparse
+import contextlib
+import json
+import os
+import sys
+import signal
+
+configPath = "/etc/speaker-on-off.json"
+if os.path.exists(configPath):
+    config = json.load(open(configPath))
+else:
+    config = {"sink": 0, "gpio-pin": 0}
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--sink", type=int, default=config.get("sink", 0))
+parser.add_argument("--gpio-pin", type=int, default=config.get("gpio-pin", 0))
+args = parser.parse_args()
+
+Controller.available_pins = [args.gpio_pin]
+
+def signal_term_handler(signal, frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, signal_term_handler)
+signal.signal(signal.SIGINT, signal_term_handler)
+
+@contextlib.contextmanager
+def speaker_gpio(gpio_pin):
+    print >>sys.stderr, "Allocing pin %d" % gpio_pin
+    gpio = Controller.alloc_pin(gpio_pin, OUTPUT)
+    try:
+        yield gpio
+    finally:
+        print >>sys.stderr, "Deallocing pin %d" % gpio_pin
+        gpio.reset()
+        Controller.dealloc_pin(gpio_pin)
+
+def sink_event_callback(event):
+    if event.index == args.sink:
+        raise PulseLoopStop()
+
+def handle_sink_state(pulse, gpio):
+    state = pulse.sink_info(args.sink).state
+    if state == 'idle':
+        print >>sys.stderr, "Turning off"
+        gpio.reset()
+    else:
+        print >>sys.stderr, "Turning on"
+        gpio.set()
+
+with Pulse('SpeakerOnOff') as pulse, speaker_gpio(args.gpio_pin) as gpio:
+    pulse.event_mask_set('sink')
+    pulse.event_callback_set(sink_event_callback)
+    handle_sink_state(pulse, gpio)
+    while True:
+        pulse.event_listen()
+        handle_sink_state(pulse, gpio)
